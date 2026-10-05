@@ -2,7 +2,7 @@
 
 Chrome / Edge 扩展，版本 **1.14.0**。把多个关键词存成规则，持续高亮，预览后替换或追加。
 
-**[打开交互演示](https://yuanyue1234.github.io/persistent-multi-find/)** · **[下载插件 ZIP](https://github.com/yuanyue1234/persistent-multi-find/raw/refs/heads/main/downloads/persistent-multi-find-v1.14.0.zip)**
+**[打开交互演示](https://asunny.top/persistent-multi-find/)** · **[下载插件 ZIP](https://github.com/yuanyue1234/persistent-multi-find/raw/refs/heads/main/downloads/persistent-multi-find-v1.14.0.zip)**
 
 ## 安装
 
@@ -44,3 +44,4 @@ Chrome / Edge 扩展，版本 **1.14.0**。把多个关键词存成规则，持�
 模拟测试不能替代真实安装扩展、系统中文输入法及目标网站素材保存验证。
 
 [历史说明](docs/history.md)记录早期版本；出现差异时以本页及当前实现为准。
+
