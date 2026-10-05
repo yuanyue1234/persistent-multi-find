@@ -1,0 +1,8 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>素材绑定助手 · 隔离测试</title>
+<style>body{background:#eef1f7;color:#172033;font:14px system-ui;margin:24px}main{display:flex;gap:24px;align-items:start}section{max-width:630px}#editor{background:white;padding:18px;min-height:160px;line-height:2;white-space:pre-wrap;border-radius:12px}.mention-chip{background:#dde8ff;border-radius:5px;padding:3px}iframe{width:448px;height:520px;border:1px solid #cbd4e5;border-radius:12px}button{padding:9px;border:0;border-radius:8px;background:#315efb;color:white;margin:8px 4px 8px 0}pre{white-space:pre-wrap;font:12px/1.6 monospace}#left{padding:12px;background:white;border-radius:8px;margin-bottom:12px}.muted{color:#68738a}#results{max-height:320px;overflow:auto}</style></head>
+<body><h1>素材绑定助手 · 隔离测试</h1><p class="muted">本页模拟插件存储和页面消息，不连接真实项目、不保存或生成视频。</p>
+<main><section><aside id="left">素材栏：塞拉-腿部包扎 / 罗温-作战服05（替换时不能改变）</aside>
+<div id="editor" class="video-prompt-mention-editor__input" contenteditable="true"></div>
+<p id="events">编辑器事件：0</p><button id="run">运行本地回归测试</button><button id="reset">重置演示</button><button id="reloadPopup">重新打开插件</button><button id="small">切换小高度</button><button id="layout">检查底栏布局</button>
+<button id="bootstrap">检查弹窗初始高度</button><button id="legendDemo">演示自动读取素材</button><button id="narrow">模拟320px侧栏</button><button id="manySchemes">演示20个方案</button><pre id="results">等待测试</pre></section><iframe id="popup" title="插件弹窗" src="/popup-test.html"></iframe></main>
+<script src="/tests/harness.js"></script><script src="/rules.js"></script><script src="/materials.js"></script><script src="/content.js"></script></body></html>

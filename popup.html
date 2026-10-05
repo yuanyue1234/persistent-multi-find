@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>连续多词高亮</title>
+    <script src="view.js"></script>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <div class="project-tools"><select id="projectSelect" aria-label="切换项目"></select><button id="addProjectButton" title="新建项目" aria-label="新建项目">＋</button><button id="renameProjectButton" title="重命名项目" aria-label="重命名项目">✎</button></div>
+        </div>
+        <div class="window-tools">
+        <button id="themeButton" class="icon-button" title="切换深色模式" aria-label="深色模式" aria-pressed="true">◐</button>
+        <button id="detachButton" class="icon-button" title="打开独立窗口，拖动系统标题栏移动" aria-label="独立窗口">↗</button>
+        <button id="sidePanelButton" class="icon-button" title="在浏览器侧边栏打开" aria-label="侧边栏">◧</button>
+        <label class="switch" title="总开关">
+          <input id="masterEnabled" type="checkbox" checked />
+          <span></span>
+        </label>
+        </div>
+      </header>
+      <div id="targetLabel" class="target-label" hidden></div>
+
+      <nav class="scheme-nav" aria-label="高亮方案">
+        <button id="schemesLeft" class="scheme-scroll" aria-label="向左滚动方案" title="向左滚动；双击回到最左">‹</button>
+        <div id="schemeTabs" class="scheme-tabs"></div>
+        <button id="schemesRight" class="scheme-scroll" aria-label="向右滚动方案" title="向右滚动；双击到最右">›</button>
+        <button id="copySchemeButton" class="add-scheme" title="复制当前方案，保留颜色与排除项" aria-label="复制当前方案">⧉</button>
+        <button id="addSchemeButton" class="add-scheme" title="新增方案" aria-label="新增方案"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+      </nav>
+
+      <section class="composer">
+        <input id="keywordInput" type="text" placeholder="输入关键词，按 Enter 添加" autocomplete="off" autofocus />
+        <input id="colorInput" type="color" value="#ffe066" title="高亮颜色" />
+        <button id="addButton" class="primary">添加</button>
+      </section>
+
+      <section id="importPanel" class="overlay-panel import-panel" hidden aria-label="导入导出">
+        <div class="panel-head"><strong>导入 / 导出</strong><button id="closeImportButton" aria-label="关闭导入导出">×</button></div>
+        <textarea id="batchInput" placeholder="每行一项，例如：&#10;多里安 | Dorian&#10;高级学生若. | 高级学生&#10;灰狼家徽机关 | 家徽机关"></textarea>
+        <div class="import-actions panel-actions">
+          <label><input id="importAsRegex" type="checkbox" /> 按正则表达式导入</label>
+          <div class="import-buttons">
+            <button id="copyExportButton">复制导出</button>
+            <button id="importButton" class="primary">导入 / 更新</button>
+          </div>
+        </div>
+        <small>每行格式：<code>匹配文本 | 替换文本</code>。右侧留空即删除；无分隔符时仅高亮；导出的 {{仅高亮}} 标记保留模式。</small>
+      </section>
+
+      <div class="toolbar">
+        <div class="toolbar-actions">
+          <button id="toggleImportButton" class="batch-toggle">导入 / 导出</button>
+          <button id="materialButton" class="batch-toggle">读取素材</button>
+          <label title="区分英文大小写"><input id="caseSensitive" type="checkbox" /> Aa</label>
+        </div>
+        <div class="count-tools"><span id="summary">0 个词条</span><button id="clearButton" class="danger-text">清空本方案</button></div>
+      </div>
+
+      <section id="termList" class="term-list" aria-live="polite"></section>
+      <section id="wrapPanel" class="overlay-panel" hidden aria-label="包裹规则">
+        <div class="panel-head"><strong>自定义包裹</strong><button id="closeWrapButton" aria-label="关闭包裹设置">×</button></div>
+        <p>点击词条的 [] 按钮，将规则应用到替换框。设置对所有词条生效。</p>
+        <label>前缀 <input id="wrap-prefix" type="text" value="["></label>
+        <label>后缀 <input id="wrap-suffix" type="text" value="]"></label>
+        <p>正则查找留空时使用前后缀；填写后对替换框文字执行正则替换。</p>
+        <label>正则查找 <input id="wrap-pattern" type="text" placeholder="例如 (张)(小乙)，无需 / 分隔符"></label>
+        <label>正则标志 <input id="wrap-flags" type="text" value="g" placeholder="g / gi"></label>
+        <label>替换模板 <input id="wrap-template" type="text" value="[$&]"></label>
+        <p>$&amp; 表示完整匹配，$1、$2 表示捕获组；例如 [$1$2]。</p>
+        <div class="panel-actions"><button id="saveWrapButton" class="primary">保存规则</button></div>
+      </section>
+      <div id="emptyState" class="empty">输入关键词开始高亮</div>
+
+      <section id="materialPanel" class="overlay-panel" hidden aria-label="绑定素材">
+        <div class="panel-head"><strong>顶部素材 → 剧本原词</strong><button id="closeMaterialButton" aria-label="关闭素材绑定">×</button></div>
+        <p>自动读取“生成段”上方的图片说明。默认匹配完整素材名；剧本简称请手动改左侧，不猜服装或伤势。</p>
+        <div class="material-tools"><button id="readMaterialsButton">重新读取</button><span id="readMaterialsStatus" role="status"></span></div>
+        <div id="pageMaterialCandidates" class="material-candidates"></div>
+        <details id="manualMaterials"><summary>手动粘贴完整引用 / 复用旧引用</summary>
+        <textarea id="materialInput" aria-label="素材引用" placeholder="粘贴一个或多个完整引用：&#10;[@罗温-作战服05#2100561479451070464]"></textarea>
+        <div id="materialCandidates" class="material-candidates"></div>
+        <details id="materialHistory"><summary>复用已保存的素材引用</summary><div id="materialHistoryList" class="material-history-list"></div></details>
+        </details>
+        <div class="panel-actions"><span id="materialHint" role="status">不会自动插入或修改网页</span><button id="saveMaterialButton" class="primary">保存绑定</button></div>
+      </section>
+
+      <section id="previewPanel" class="overlay-panel" hidden aria-label="替换预览">
+        <div class="panel-head"><strong id="previewTitle">替换预览</strong><button id="closePreviewButton" aria-label="关闭替换预览">×</button></div>
+        <p id="previewScope"></p>
+        <div id="previewRules" class="preview-rules"></div>
+        <details><summary>查看替换示例</summary><div id="previewSamples"></div></details>
+        <p class="preview-warning">只修改当前加载内容，不代点保存或生成。平台可能自动保存，请检查后再继续。</p>
+        <div class="panel-actions"><button id="cancelPreviewButton">取消</button><button id="applyPreviewButton" class="primary">确认替换</button></div>
+      </section>
+
+      <aside id="excludePanel" class="overlay-panel exclude-panel" hidden aria-label="排除文本">
+        <div class="panel-head exclude-panel-head">
+          <div><strong>词条设置</strong><small id="excludeTermLabel"></small></div>
+          <button id="closeExcludeButton" aria-label="关闭排除设置">×</button>
+        </div>
+        <label class="delete-option"><input id="deleteMatchInput" type="checkbox"> 删除匹配文字（需预览确认）</label>
+        <small>替换栏留空即删除；左侧荧光笔模式只高亮，不参与替换。</small>
+        <textarea id="excludeInput" placeholder="每行一个需要排除的完整文本"></textarea>
+        <div class="exclude-actions panel-actions">
+          <button id="clearExcludeButton">清空排除</button>
+          <button id="saveExcludeButton" class="primary">保存设置</button>
+        </div>
+      </aside>
+      <aside id="resultToast" class="result-toast" hidden>
+        <div class="result-toast-head">
+          <strong id="resultTitle">替换成功</strong>
+          <button id="closeResultButton" aria-label="关闭提示">×</button>
+        </div>
+        <div id="resultRules" class="result-rules"></div>
+      </aside>
+      <div id="status" class="status" role="status"></div>
+      <footer>
+        <button id="undoButton" class="undo">恢复上次</button>
+        <button id="appendAllButton">预览全部追加</button>
+        <button id="replaceAllButton" class="replace">预览全部替换</button>
+      </footer>
+    </main>
+    <script src="rules.js"></script>
+    <script src="materials.js"></script>
+    <script src="palette.js"></script>
+    <script src="popup.js"></script>
+    <script src="workspace.js"></script>
+  </body>
+</html>

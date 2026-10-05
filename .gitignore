@@ -1,0 +1,6 @@
+node_modules/
+codex/
+optimization-log.md
+ui-preview*.png
+.env
+.env.*

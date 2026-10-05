@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="连续多词高亮与批量替换：把常用规则存进项目，预览后替换或追加。Chrome / Edge 浏览器扩展，在线交互演示。">
+<meta name="theme-color" content="#141714">
+<title>多词高亮 · 让重复编辑，到此为止</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23d9f978'/%3E%3Cpath d='M11 12h18M11 20h12M11 28h18' stroke='%23141714' stroke-width='4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="demo.css"><script src="rules.js" defer></script><script src="demo.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#playground">跳到交互演示</a>
+<div class="page-shell">
+<header class="site-header"><a class="brand" href="#top"><span class="brand-icon" aria-hidden="true">≡</span> 多词高亮<span class="version">v1.14.0</span></a><nav aria-label="页面导航"><a href="#playground">在线演示</a><a href="#guide">使用指南</a><a href="#install" class="nav-install">安装插件 <span aria-hidden="true">↗</span></a></nav></header>
+<main id="top">
+<section class="hero">
+<div class="hero-copy"><div class="eyebrow"><span></span> CHROME / EDGE EXTENSION</div><h1>找到每一处。<br>改好<span class="ink-highlight">每一处。</span></h1><p class="hero-description">名字、术语、素材引用。<br>把重复修改存成规则，让注意力回到创作。</p><div class="hero-actions"><a href="#playground" class="button primary">先试一试 <span aria-hidden="true">↓</span></a><a href="downloads/persistent-multi-find-v1.14.0.zip" download class="button secondary">下载插件 <span aria-hidden="true">↗</span></a></div><div class="hero-note">本地保存规则 <span>·</span> 先预览，再执行 <span>·</span> 无需账号</div></div>
+<div class="editor-illustration" aria-label="高亮规则示例"><div class="illustration-top"><span class="window-dots">● ● ●</span><span>创作中的一个片段</span><span>01 / 03</span></div><p class="document-label">生成段 01 <span>夜色中的约定</span></p><p class="illustration-text"><mark class="lime">张小乙</mark>走进庭院，<mark class="blue">林月</mark>正在灯下等他。<br><br>远处的<mark class="peach">祭坛</mark>亮起，<mark class="lime">张小乙</mark>停住脚步。</p><div class="floating-rule"><span class="rule-dot"></span><span>张小乙</span><span class="arrow">→</span><strong>[张小乙]</strong><span class="pill">2 处</span></div><div class="illustration-bottom"><span>3 条规则，持续生效</span><span>原文由你掌控</span></div></div>
+</section>
+<div class="feature-strip"><span><b>01</b> 多词同时高亮</span><span><b>02</b> 项目 / 生成段管理</span><span><b>03</b> 替换与追加</span><span><b>04</b> 正则与素材绑定</span></div>
+<section id="playground" class="playground section-space">
+<div class="section-heading"><div><p class="eyebrow">TRY IT YOURSELF</p><h2>先在这里，改一段文字。</h2></div><p>使用插件的同一套匹配引擎。<br>演示只修改下方示例，不访问你的网页。</p></div>
+<div class="demo-layout">
+<form id="demoForm" class="rule-panel"><div class="panel-title"><span>你的规则</span><span class="small-label">LIVE DEMO</span></div><label for="matchInput">匹配文字</label><input id="matchInput" value="张小乙" maxlength="300" autocomplete="off"><label for="replacementInput">替换 / 追加内容 <span>替换时留空即删除</span></label><div class="input-with-button"><input id="replacementInput" value="[张小乙]" maxlength="1000" autocomplete="off"><button id="wrapButton" type="button" title="添加一层方括号" aria-label="添加方括号">[ ]</button></div><label for="excludeInput">排除文字 <span>可选，每行一项</span></label><textarea id="excludeInput" rows="2" placeholder="例如：张小乙的旧居"></textarea><div class="check-row"><label><input type="checkbox" id="regexInput"> 正则表达式</label><label><input type="checkbox" id="caseInput"> 区分大小写</label></div><fieldset class="modes"><legend>操作方式</legend><label><input type="radio" name="mode" value="highlight" checked><span>仅高亮</span></label><label><input type="radio" name="mode" value="replace"><span>替换</span></label><label><input type="radio" name="mode" value="append"><span>追加</span></label></fieldset><button class="button primary preview-button" type="submit">预览操作 <span aria-hidden="true">→</span></button><p class="rule-help">追加 = 保留原文，再接上右侧内容。<br>例如：张小乙 → 张小乙[张小乙]</p></form>
+<div class="demo-document"><div class="document-toolbar"><span>文本工作区</span><button id="resetButton" type="button">重置示例 ↺</button></div><label class="source-label" for="sourceInput">原文 · 可以直接编辑</label><textarea id="sourceInput" rows="5" maxlength="12000">张小乙走进庭院，林月正在灯下等他。
+远处的祭坛亮起，张小乙停住脚步。
+悬崖祭坛旁，留下了一段未完成的故事。</textarea><div class="output-heading"><span id="outputLabel">匹配预览</span><span id="matchCount" class="count">2 处匹配</span></div><div id="output" class="output" tabindex="0" aria-label="处理结果"></div><div class="document-actions"><p id="demoStatus" role="status" aria-live="polite">选择操作方式，预览后再应用。</p><div><button id="undoDemoButton" type="button" disabled>撤回</button><button id="applyButton" type="button" disabled>应用到示例</button></div></div></div>
+</div>
+<div class="preset-row"><span>试试这些场景</span><button type="button" data-preset="replace">名字加括号</button><button type="button" data-preset="append">保留名字，追加描述</button><button type="button" data-preset="exclude">替换祭坛，排除悬崖祭坛</button><button type="button" data-preset="regex">用正则交换姓名顺序</button></div>
+</section>
+<section id="guide" class="guide section-space"><div class="section-heading"><div><p class="eyebrow">A SMALL TOOL. A CLEAR WORKFLOW.</p><h2>一套规则，跟着项目走。</h2></div><p>从一个词开始，也可以管理整段创作。</p></div><div class="guide-row"><span class="step-number">01</span><div><h3>先选项目，再选生成段</h3><p>标题下拉菜单切换项目；下方标签保留不同生成段的方案。新建从「方案1」开始，每个项目记住上次使用的方案。支持复制、改名和拖动词条排序。</p></div><div class="mini-project"><div>短片 · 夜色中的约定 <span>⌄</span></div><span class="selected">方案1</span><span>方案2</span><span>＋</span></div></div><div class="guide-row"><span class="step-number">02</span><div><h3>找到、排除，再决定怎么改</h3><p>多个关键词持续高亮，按感知色差分配颜色。关闭替换栏就只高亮；展开后可以替换、追加，或留空删除。排除项让「祭坛」避开「悬崖祭坛」。</p></div><div class="mini-modes"><span><i class="lime"></i> 仅高亮</span><span>原文 → 新文本</span><span>原文 ＋ 追加内容</span></div></div><div class="guide-row"><span class="step-number">03</span><div><h3>预览变化，再确认执行</h3><p>单项或全部操作都会展示命中数量、范围和示例。修改后可恢复上次；规则输入框还支持 Ctrl+Z 撤回。独立窗口和侧栏适合边写边改。</p></div><div class="mini-confirm"><span>预览 · 2 处</span><strong>张小乙 → [张小乙]</strong><span class="confirmation-label">确认后执行 →</span></div></div></section>
+<section class="advanced section-space"><div><p class="eyebrow">FOR LONGER STORIES</p><h2>从文字规则，<br>到素材引用。</h2><p>点击「读取素材」，读取当前分镜“生成段”上方的图片说明，将剧本原词对应到当前已有素材标签。你选择素材版本，插件保留完整引用。</p><a href="#details" class="text-link">查看语法与使用边界 ↓</a></div><div class="code-window"><div>规则导入 / 导出 <span>每行一条</span></div><pre><code><span class="code-comment"># 普通替换与排除</span>
+祭坛 -悬崖祭坛 | 神坛
+
+<span class="code-comment"># 素材绑定</span>
+张小乙 - | {{图片:张小乙-雨衣}}
+
+<span class="code-comment"># 仅高亮</span>
+林月 - | {{仅高亮}}林月
+
+<span class="code-comment"># 正则捕获组（按正则导入）</span>
+(张)(小乙) | $2$1</code></pre><p>上方 # 行是说明，实际导入时只复制规则行。</p></div></section>
+<section id="install" class="install section-space"><div><p class="eyebrow">READY WHEN YOU ARE</p><h2>给浏览器，加一支荧光笔。</h2><p>Chrome / Edge · 无需构建 · 解压后即可加载</p><a href="downloads/persistent-multi-find-v1.14.0.zip" download class="button primary">下载 v1.14.0 <span aria-hidden="true">↗</span></a></div><ol><li><b>下载并解压</b><span>将插件文件夹放在固定位置。</span></li><li><b>打开扩展管理</b><span>Chrome：<code>chrome://extensions</code><br>Edge：<code>edge://extensions</code></span></li><li><b>开启开发者模式并加载</b><span>选择「加载已解压的扩展程序」，选中包含 manifest.json 的文件夹。</span></li></ol></section>
+<section id="details" class="details section-space"><div><p class="eyebrow">GOOD TO KNOW</p><h2>用之前，了解这些。</h2></div><div class="faq"><details open><summary>替换、追加、仅高亮有什么区别？</summary><p>替换把匹配文字变成输入内容，留空就是删除。追加保留原文，在后面接上输入内容，留空不操作。收起替换栏后只高亮，全部操作也会跳过该词条。</p></details><details><summary>更新插件后，需要做什么？</summary><p>在扩展管理页点击重新加载，再刷新目标网页。不要先卸载，以免丢失本地规则。安装目录请保持不变。</p></details><details><summary>可以恢复之前的修改吗？</summary><p>「恢复上次」保留当前页面最近10次操作，刷新或关闭网页后清空。若后续编辑改变了正文，会拒绝覆盖新内容。替换框的 Ctrl+Z 历史仅在本次打开期间有效。</p></details><details><summary>素材绑定有什么限制？</summary><p>只复用当前页面已有素材标签，不猜素材ID，不自动选择服装或状态。已有引用受保护。同名冲突、素材移除或缺少“生成段”标题时会提示。真实平台是否正确保存标签，仍需先在测试分镜验证。</p></details><details><summary>数据保存在哪里？</summary><p>项目、方案和设置保存在浏览器本地。插件不内置账号或云同步。这一演示页不上传输入内容，也不会读取或修改你的其他网页。</p></details><details><summary>为什么有些页面不能使用？</summary><p>浏览器内部页面及扩展商店禁止脚本注入。普通文本按文本节点匹配，跨格式节点的关键词可能无法一次匹配。网站是否保存修改由网站自身决定，执行前请查看预览范围。</p></details></div></section>
+</main><footer><a class="brand" href="#top"><span class="brand-icon" aria-hidden="true">≡</span> 多词高亮</a><span>少一点重复，多一点创作。</span><a href="README.md">阅读 README ↗</a></footer>
+</div>
+</body></html>
