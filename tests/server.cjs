@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const files = new Set(['popup.html', 'popup.css', 'popup.js', 'palette.js', 'view.js', 'workspace.js', 'content.js', 'rules.js', 'materials.js', 'tests/harness.html', 'tests/harness.js', 'tests/mock-popup.js']);
-for (const name of ['index.html', 'demo.css', 'demo.js', 'README.md', 'downloads/persistent-multi-find-v1.16.0.zip']) files.add(name);
+for (const name of ['index.html', 'demo.css', 'demo.js', 'README.md', 'downloads/persistent-multi-find-v1.16.1.zip']) files.add(name);
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   let name = url.pathname.slice(1) || 'tests/harness.html';

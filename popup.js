@@ -85,12 +85,11 @@ function formatPattern(term, includeEmptyDash = true) {
 }
 
 function transferSchemes() {
-  return document.getElementById('globalTransfer').checked ? state.schemes : [activeScheme()];
+  return document.getElementById('globalTransfer').checked ? projectSchemes() : [activeScheme()];
 }
 function exportText() {
   const block = scheme => `# ${scheme.name}\n` + scheme.terms.map(term => `${formatPattern(term, false)} | ${term.compact ? '{{仅高亮}}' : ''}${term.deleteMatch ? '{{删除}}' : term.replacement || ''}`).join('\n');
-  if (!document.getElementById('globalTransfer').checked) return block(activeScheme());
-  return state.projects.map(project => `## ${project.name}\n` + state.schemes.filter(s => s.projectId === project.id).map(block).join('\n\n')).join('\n\n');
+  return transferSchemes().map(block).join('\n\n');
 }
 
 function activeScheme() {
@@ -442,31 +441,24 @@ els.importButton.addEventListener("click", async () => {
   const rawLines = els.batchInput.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const global = document.getElementById('globalTransfer').checked;
   const blocks = [];
-  let projectName = state.projects.find(p => p.id === state.activeProjectId).name;
   let block = null;
   for (const line of rawLines) {
-    const projectTitle = line.match(/^##\s+(.+)$/), title = line.match(/^#\s+(.+)$/);
-    if (projectTitle) { projectName = projectTitle[1].trim(); block = null; continue; }
-    if (title) { block = { projectName, name: title[1].trim(), lines: [] }; blocks.push(block); continue; }
-    if (!block) { block = { projectName, name: activeScheme().name, lines: [] }; blocks.push(block); }
+    if (/^##\s+/.test(line)) return showStatus('只支持当前项目的片段，请移除项目标题后导入');
+    const title = line.match(/^#\s+(.+)$/);
+    if (title) { block = { name: title[1].trim(), lines: [] }; blocks.push(block); continue; }
+    if (!block) { block = { name: activeScheme().name, lines: [] }; blocks.push(block); }
     block.lines.push(line);
   }
   if (!blocks.length) return showStatus('没有可导入的方案');
   if (!global && (blocks.length > 1 || rawLines.some(line => /^##\s+/.test(line)))) return showStatus('当前片段模式只能导入一个方案；请勾选全局后导入多个方案');
   // Resolve ambiguous names before any mutation.
-  if (global && blocks.some(block => {
-    const projects = state.projects.filter(p => p.name === block.projectName);
-    return projects.length > 1 || (projects[0] && state.schemes.filter(s => s.projectId === projects[0].id && s.name === block.name).length > 1);
-  })) return showStatus('存在重名项目或方案，请先重命名再导入，避免合并到错误位置');
+  if (global && blocks.some(block => projectSchemes().filter(s => s.name === block.name).length > 1)) return showStatus('当前项目存在重名方案，请先重命名再导入');
   let added = 0, updated = 0, invalid = 0;
   for (const block of blocks) {
     let target = activeScheme();
     if (global) {
-      let project = state.projects.find(p => p.name === block.projectName);
-      if (!project) { project = { id: uid(), name: block.projectName }; state.projects.push(project); }
-      target = state.schemes.find(s => s.projectId === project.id && s.name === block.name);
-      if (!target) { target = { id: uid(), name: block.name, projectId: project.id, terms: [] }; state.schemes.push(target); }
-      if (!project.activeSchemeId) project.activeSchemeId = target.id;
+      target = projectSchemes().find(s => s.name === block.name);
+      if (!target) { target = { id: uid(), name: block.name, projectId: state.activeProjectId, terms: [] }; state.schemes.push(target); }
     } else target.name = block.name;
     const parsedByKeyword = new Map();
     for (const line of block.lines) {
@@ -1025,5 +1017,22 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && to
 
 document.getElementById('globalTransfer').addEventListener('change', () => {
   if (els.batchInput.value === els.batchInput.dataset.exported) els.batchInput.value = els.batchInput.dataset.exported = exportText();
-  showStatus(document.getElementById('globalTransfer').checked ? '全局：所有项目与方案；点击复制导出生成文本' : '当前片段：仅当前方案；点击复制导出生成文本');
+  showStatus(document.getElementById('globalTransfer').checked ? '全局：当前项目的所有片段；点击复制导出生成文本' : '当前片段：仅当前方案；点击复制导出生成文本');
+});
+
+document.getElementById('deleteProjectButton').addEventListener('click', async () => {
+  const project = state.projects.find(p => p.id === state.activeProjectId);
+  if (!confirm(`删除项目“${project.name}”及其中 ${projectSchemes().length} 个片段？此操作不可撤回。`)) return;
+  state.schemes = state.schemes.filter(s => s.projectId !== project.id);
+  state.projects = state.projects.filter(p => p.id !== project.id);
+  if (!state.projects.length) {
+    const replacement = { id: uid(), name: '项目1' };
+    const scheme = { id: uid(), projectId: replacement.id, name: '方案1', terms: [] };
+    replacement.activeSchemeId = scheme.id;
+    state.projects.push(replacement); state.schemes.push(scheme);
+  }
+  const next = state.projects[0]; state.activeProjectId = next.id;
+  state.activeSchemeId = projectSchemes().find(s => s.id === next.activeSchemeId)?.id || projectSchemes()[0].id;
+  document.getElementById('termSearch').value = '';
+  render(); els.color.value = nextAutoColor(); await save(true); showStatus('项目已删除');
 });
