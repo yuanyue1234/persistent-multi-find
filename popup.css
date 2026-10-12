@@ -238,3 +238,24 @@ footer button { padding: 6px 4px; font-size: 12px; }
   .append-one { width: 100%; }
   .term-exclude svg, .replace-one svg { display: none; }
 }
+/* Keep search, count and clearing together without narrowing rule inputs. */
+.count-tools { width: 100%; min-width: 0; }
+#termSearch { flex: 1; min-width: 40px; width: 80px; height: 28px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 5px; background: transparent; color: var(--ink); font-size: 11px; }
+#termSort { width: 89px; height: 28px; padding: 2px; border: 1px solid var(--line); border-radius: 5px; background: transparent; color: var(--ink); font-size: 11px; }
+.count-tools > span, #clearButton { flex-shrink: 0; white-space: nowrap; }
+.term-list::-webkit-scrollbar-button { display: none; height: 0; }
+.term[hidden] { display: none; }
+.dark #termSort { background: #202735; }
+
+header { align-items: center; gap: 6px; }
+header > div:first-child { margin-right: 0; }
+.project-tools select { width: 100px; max-width: 120px; height: 30px; font-size: 13px; }
+.tools-menu { position: relative; flex-shrink: 0; }
+.tools-menu > summary { list-style: none; cursor: pointer; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; white-space: nowrap; }
+.tools-menu > summary::-webkit-details-marker { display: none; }
+.tools-menu > summary:focus-visible { outline: 2px solid var(--primary); }
+.tools-dropdown { position: absolute; top: calc(100% + 6px); right: 0; width: 172px; padding: 6px; display: grid; gap: 4px; background: white; border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); z-index: 30; }
+.tools-dropdown button, .tools-dropdown label { width: 100%; min-height: 32px; display: flex; align-items: center; gap: 6px; padding: 7px 9px; font-size: 12px; text-align: left; border-radius: 5px; }
+.tools-dropdown #themeButton[aria-pressed=true]::after { content: '✓'; margin-left: auto; }
+.dark .tools-dropdown { background: #202735; }
+@media(max-width:390px) { .project-tools select { width: 65px; min-width: 50px; } .tools-menu > summary { padding: 6px 5px; } }

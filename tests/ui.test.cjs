@@ -88,7 +88,7 @@ test('explicit deletion setting is visible and round trips through text export',
   assert.equal(e.data().schemes[0].terms[0].deleteMatch, true);
   assert.equal(e.doc.querySelector('.replace-one').textContent, '删除');
   e.doc.getElementById('toggleImportButton').click();
-  assert.match(e.doc.getElementById('batchInput').value, /A - \| \{\{删除\}\}/);
+  assert.match(e.doc.getElementById('batchInput').value, /A \| \{\{删除\}\}/);
   e.doc.getElementById('batchInput').value = 'A - | ';
   e.doc.getElementById('importButton').click(); await tick();
   assert.equal(e.data().schemes[0].terms[0].deleteMatch, false);
@@ -142,7 +142,7 @@ test('default replacement, select on entry, compact mode, wrapping and theme per
   const e = await popup(t);
   e.doc.getElementById('keywordInput').value = '张小乙';
   e.doc.getElementById('addButton').click(); await tick();
-  const row = e.doc.querySelector('.term:last-child');
+  const row = e.doc.querySelector('.term:first-child');
   const input = row.querySelector('.term-replacement');
   assert.equal(input.value, '张小乙');
   input.focus();
@@ -217,7 +217,7 @@ test('highlight-only mode is excluded from batch preview and survives export/imp
   e.doc.getElementById('replaceAllButton').click(); await tick();
   assert.deepEqual(Array.from(e.calls.find(call => call.message?.type === 'previewReplace').message.ids), ['B','C']);
   e.doc.getElementById('toggleImportButton').click();
-  assert.match(e.doc.getElementById('batchInput').value, /A - \| \{\{仅高亮\}\}X/);
+  assert.match(e.doc.getElementById('batchInput').value, /A \| \{\{仅高亮\}\}X/);
   e.doc.getElementById('importButton').click(); await tick();
   assert.equal(e.data().schemes[0].terms[0].compact, true);
   assert.equal(e.data().schemes[0].terms[0].replacement, 'X');
@@ -273,4 +273,45 @@ test('automatic colors stay unique beyond 20 items and preserve existing choices
   for(let i=0;i<40;i++) items.push({color:e.w.PmfColors.next(items)});
   assert.equal(new Set(items.map(t=>t.color)).size,40);
   assert.equal(items[0].color,'#ffe066');
+});
+
+
+test('newest sorting, searchable fields and visible-only batch actions', async t => {
+  const e = await popup(t), d = e.doc;
+  const entries = [
+    { ...terms()[0], id: '100-a', keyword: '旧词', replacement: '目标', exclusions: ['排除甲'] },
+    { ...terms()[1], id: '200-b', keyword: '新词', replacement: '另外', exclusions: [] }
+  ];
+  await e.set({ schemes: [{ ...e.data().schemes[0], terms: entries }] }); await tick();
+  assert.equal(d.querySelector('.term').dataset.id, '200-b');
+  const sort = d.getElementById('termSort'); sort.value = 'oldest'; sort.dispatchEvent(new e.w.Event('change'));
+  await tick(); assert.equal(d.querySelector('.term').dataset.id, '100-a');
+  assert.equal(e.data().termSort, 'oldest');
+  const search = d.getElementById('termSearch');
+  for (const query of ['旧词', '目标', '排除甲']) {
+    search.value = query; search.dispatchEvent(new e.w.Event('input'));
+    assert.equal(d.querySelectorAll('.term:not([hidden])').length, 1);
+    assert.equal(d.getElementById('summary').textContent, '1/2 项');
+  }
+  d.getElementById('replaceAllButton').click(); await tick();
+  assert.deepEqual(e.calls.filter(c => c.message?.type === 'previewReplace').at(-1).message.ids, ['100-a']);
+  d.getElementById('appendAllButton').click(); await tick();
+  assert.deepEqual(e.calls.filter(c => c.message?.type === 'previewReplace').at(-1).message.ids, ['100-a']);
+  search.value = '不存在'; search.dispatchEvent(new e.w.Event('input'));
+  const before = e.calls.length; d.getElementById('replaceAllButton').click(); await tick();
+  assert.equal(e.calls.length, before);
+});
+
+test('tools are grouped and titled exports import filenames intact', async t => {
+  const e = await popup(t), d = e.doc;
+  assert.equal(d.getElementById('listTop'), null);
+  for (const id of ['themeButton','toggleImportButton','materialButton','caseSensitive']) assert.ok(d.getElementById('toolsMenu').contains(d.getElementById(id)));
+  d.getElementById('batchInput').value = '# 镜头012 秦烈追击\n黑马 | [20_战马.jpeg]\n秦烈 | [17_秦烈｜秦军校尉.jpeg]\n马匹|[20_战马.jpeg]';
+  d.getElementById('importButton').click(); await tick();
+  assert.equal(e.data().schemes[0].name, '镜头012 秦烈追击');
+  assert.equal(e.data().schemes[0].terms.find(t => t.keyword === '秦烈').replacement, '[17_秦烈｜秦军校尉.jpeg]');
+  assert.ok(e.data().schemes[0].terms.some(t => t.keyword === '马匹'));
+  d.getElementById('toggleImportButton').click();
+  assert.ok(d.getElementById('batchInput').value.startsWith('# 镜头012 秦烈追击\n'));
+  assert.ok(d.getElementById('batchInput').value.includes('黑马 | [20_战马.jpeg]'));
 });

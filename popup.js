@@ -1,4 +1,4 @@
-const DEFAULTS = { terms: [], schemes: null, activeSchemeId: null, projects: null, activeProjectId: null, enabled: true, caseSensitive: false, darkMode: true, wrapSettings: { prefix: '[', suffix: ']', pattern: '', flags: 'g', template: '[$&]' } };
+const DEFAULTS = { termSort: 'newest', terms: [], schemes: null, activeSchemeId: null, projects: null, activeProjectId: null, enabled: true, caseSensitive: false, darkMode: true, wrapSettings: { prefix: '[', suffix: ']', pattern: '', flags: 'g', template: '[$&]' } };
 const PALETTE = [
   "#ffe066", "#8ce99a", "#74c0fc", "#b197fc", "#ffa8a8", "#ffc078",
   "#63e6be", "#f783ac", "#a9e34b", "#e599f7", "#66d9e8", "#ff922b"
@@ -85,7 +85,7 @@ function formatPattern(term, includeEmptyDash = true) {
 }
 
 function exportText() {
-  return terms().map((term) => `${formatPattern(term, true)} | ${term.compact ? '{{仅高亮}}' : ''}${term.deleteMatch ? '{{删除}}' : term.replacement || ""}`).join("\n");
+  return `# ${activeScheme().name}\n` + terms().map((term) => `${formatPattern(term, false)} | ${term.compact ? '{{仅高亮}}' : ''}${term.deleteMatch ? '{{删除}}' : term.replacement || ""}`).join("\n");
 }
 
 function activeScheme() {
@@ -111,6 +111,7 @@ async function load(persist = true) {
   }));
   state = {
     projects, activeProjectId,
+    termSort: ['newest', 'oldest', 'manual'].includes(stored.termSort) ? stored.termSort : 'newest',
     darkMode: stored.darkMode,
     wrapSettings: stored.wrapSettings,
     enabled: stored.enabled,
@@ -133,6 +134,7 @@ function storagePayload() {
   if (state.projects) state.projects.find(p => p.id === state.activeProjectId).activeSchemeId = state.activeSchemeId;
   return {
     projects: state.projects, activeProjectId: state.activeProjectId,
+    termSort: state.termSort,
     darkMode: state.darkMode,
     wrapSettings: state.wrapSettings,
     enabled: state.enabled,
@@ -196,7 +198,11 @@ function render() {
   els.empty.hidden = terms().length > 0;
   els.summary.textContent = `${terms().length} 项`;
 
-  for (const term of terms()) {
+  document.getElementById('termSort').value = state.termSort;
+  const ordered = [...terms()];
+  const created = term => /^[a-z0-9]+-/.test(term.id) ? parseInt(term.id.split('-')[0], 36) || 0 : 0;
+  if (state.termSort !== 'manual') ordered.sort((a, b) => (created(a) - created(b) || (created(a) ? terms().indexOf(a) - terms().indexOf(b) : 0)) * (state.termSort === 'oldest' ? 1 : -1));
+  for (const term of ordered) {
     const row = document.createElement("article");
     row.className = `term${term.enabled ? "" : " off"}${term.deleteMatch ? ' delete-mode' : ''}${term.compact ? ' compact' : ''}`;
     row.dataset.id = term.id;
@@ -225,6 +231,7 @@ function render() {
     updateTermControls(row, term);
     els.list.append(row);
   }
+  applyTermFilter();
   if (!els.importPanel.hidden) els.batchInput.value = exportText();
 }
 function icon(name) {
@@ -280,8 +287,10 @@ async function addTerm() {
   const material = catalog?.items?.find(item => item.name === keyword && !item.ambiguous);
   terms().push({ id: uid(), keyword, replacement: material?.replacement || keyword, color: els.color.value, enabled: true, regex: false, exclusions: [] });
   els.keyword.value = "";
+  document.getElementById('termSearch').value = "";
   els.color.value = nextAutoColor();
   render();
+  els.list.scrollTop = state.termSort === 'oldest' || state.termSort === 'manual' ? els.list.scrollHeight : 0;
   const result = await save(true);
   showStatus(material ? `已绑定图片“${keyword}”；预览后确认替换` : result ? `已高亮 ${result.count} 处（未绑定素材）` : `已添加到 ${activeScheme().name}`);
   els.keyword.focus();
@@ -315,6 +324,7 @@ function commitOrder() {
   const ordered = Array.from(els.list.children, row => terms().find(term => term.id === row.dataset.id)).filter(Boolean);
   if (ordered.length !== terms().length) return;
   activeScheme().terms = ordered;
+  state.termSort = 'manual'; document.getElementById('termSort').value = 'manual';
   previewPlan = null;
   save();
   showStatus('已保存词条顺序');
@@ -322,7 +332,7 @@ function commitOrder() {
 let dragState = null;
 els.list.addEventListener('pointerdown', event => {
   const handle = event.target.closest('.drag-handle');
-  if (!handle || event.button !== 0) return;
+  if (!handle || event.button !== 0 || document.getElementById('termSearch').value.trim()) return;
   event.preventDefault();
   const row = handle.closest('.term');
   dragState = { row, handle, pointerId: event.pointerId, changed: false };
@@ -353,7 +363,7 @@ els.list.addEventListener('pointerup', () => finishDrag());
 els.list.addEventListener('pointercancel', () => finishDrag(true));
 els.list.addEventListener('keydown', event => {
   const handle = event.target.closest('.drag-handle');
-  if (!handle || !event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+  if (!handle || !event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key) || document.getElementById('termSearch').value.trim()) return;
   event.preventDefault();
   const row = handle.closest('.term');
   if (event.key === 'ArrowUp' && row.previousElementSibling) els.list.insertBefore(row, row.previousElementSibling);
@@ -425,9 +435,12 @@ document.addEventListener("keydown", (event) => {
 
 els.importButton.addEventListener("click", async () => {
   const rawLines = els.batchInput.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const title = rawLines[0]?.match(/^#\s+(.+)$/);
+  if (title) rawLines.shift();
+  if (rawLines.some(line => /^#\s+/.test(line))) return showStatus('请每次只导入一个方案');
   const parsedByKeyword = new Map();
   for (const line of rawLines) {
-    const separator = line.match(/\s+\|\s*/);
+    const separator = line.match(/\s+\|\s*/) || (!els.importAsRegex.checked ? line.match(/\|\s*/) : null);
     const pattern = parsePatternText((separator ? line.slice(0, separator.index) : line).trim());
     const keyword = pattern.keyword;
     const rawReplacement = separator ? line.slice(separator.index + separator[0].length).trim() : keyword;
@@ -435,6 +448,7 @@ els.importButton.addEventListener("click", async () => {
     const replacement = rawReplacement.replace(/^\{\{仅高亮\}\}/, '');
     if (keyword) parsedByKeyword.set(keyword, { keyword, compact, replacement: replacement === '{{删除}}' ? '' : replacement, deleteMatch: replacement === '{{删除}}', exclusions: pattern.exclusions });
   }
+  if (title && parsedByKeyword.size) activeScheme().name = title[1].trim();
   let added = 0;
   let updated = 0;
   let invalid = 0;
@@ -473,7 +487,7 @@ els.importButton.addEventListener("click", async () => {
 
 els.copyExport.addEventListener("click", async () => {
   const text = exportText();
-  if (!text) return showStatus("当前方案没有可导出的词条");
+  if (!terms().length) return showStatus("当前方案没有可导出的词条");
   els.batchInput.value = text;
   els.batchInput.focus();
   els.batchInput.select();
@@ -609,7 +623,7 @@ els.clear.addEventListener("click", () => {
 });
 
 els.replaceAll.addEventListener("click", async () => {
-  const eligible = terms().filter((term) => term.enabled && term.keyword && !term.compact);
+  const eligible = visibleTerms().filter((term) => term.enabled && term.keyword && !term.compact);
   if (!eligible.length) return showStatus("当前词条均为仅高亮或未启用，无需替换");
   await previewReplacement(eligible);
 });
@@ -784,9 +798,10 @@ async function previewReplacement(selectedTerms, mode = "replace") {
   const action = mode === "append" ? "追加" : "替换";
   const schemeId = state.activeSchemeId;
   const selectedSnapshot = JSON.stringify(selectedTerms);
+  const searchSnapshot = document.getElementById('termSearch').value;
   await save();
   const result = await send({ type: "previewReplace", mode, ids: selectedTerms.map(term => term.id) });
-  if (schemeId !== state.activeSchemeId || selectedSnapshot !== JSON.stringify(selectedTerms)) return showStatus("规则已变化，请重新预览");
+  if (searchSnapshot !== document.getElementById('termSearch').value || schemeId !== state.activeSchemeId || selectedSnapshot !== JSON.stringify(selectedTerms)) return showStatus("规则已变化，请重新预览");
   if (!result || result.error) return showStatus(result?.error || "无法读取页面，请刷新网页后重试");
   previewPlan = { ...result, mode };
   previewTerms = structuredClone(selectedTerms);
@@ -850,7 +865,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (changed) load(false).then(() => showStatus('已同步其他窗口 / 快速添加的修改'));
 });
 load();
-for (const [id, name] of Object.entries({ themeButton: 'theme', detachButton: 'window', sidePanelButton: 'sidebar', copySchemeButton: 'copy', schemesLeft: 'left', schemesRight: 'right' })) document.getElementById(id).innerHTML = icon(name);
+for (const [id, name] of Object.entries({ detachButton: 'window', sidePanelButton: 'sidebar', copySchemeButton: 'copy', schemesLeft: 'left', schemesRight: 'right' })) document.getElementById(id).innerHTML = icon(name);
 
 // Select once on entry; later clicks can position the caret normally.
 els.list.addEventListener('focusin', event => {
@@ -913,7 +928,7 @@ document.getElementById('renameProjectButton').addEventListener('click', async (
   project.name = name; renderProjects(); await save();
 });
 document.getElementById('appendAllButton').addEventListener('click', () => {
-  const selected = terms().filter(t => t.enabled && t.keyword && !t.compact);
+  const selected = visibleTerms().filter(t => t.enabled && t.keyword && !t.compact);
   if (!selected.length) return showStatus('当前没有可追加的词条');
   previewReplacement(selected, 'append');
 });
@@ -946,3 +961,37 @@ els.list.addEventListener('keydown', event => {
   event.target.setSelectionRange(term.replacement.length, term.replacement.length);
   updateTermControls(row, term); save();
 });
+
+// Filter existing rows so typing and native input history keep their DOM nodes.
+function visibleTerms() {
+  const ids = new Set(Array.from(els.list.children).filter(row => !row.hidden).map(row => row.dataset.id));
+  return terms().filter(term => ids.has(term.id));
+}
+function applyTermFilter() {
+  const query = document.getElementById('termSearch').value.trim().toLocaleLowerCase();
+  for (const row of els.list.children) {
+    const term = terms().find(t => t.id === row.dataset.id);
+    row.hidden = ![term.keyword, term.replacement, ...(term.exclusions || [])].some(value => String(value || '').toLocaleLowerCase().includes(query));
+    row.querySelector('.drag-handle').disabled = !!query;
+  }
+  const visible = visibleTerms();
+  els.summary.textContent = query ? `${visible.length}/${terms().length} 项` : `${terms().length} 项`;
+  els.empty.hidden = visible.length > 0;
+  els.empty.textContent = query ? '没有符合条件的词条' : '输入关键词开始高亮';
+  const count = visible.filter(t => t.enabled && t.keyword && !t.compact).length;
+  els.replaceAll.textContent = query ? `预览筛选替换 (${count})` : '预览全部替换';
+  document.getElementById('appendAllButton').textContent = query ? `预览筛选追加 (${count})` : '预览全部追加';
+}
+document.getElementById('termSearch').addEventListener('input', () => {
+  previewPlan = null; extra.previewPanel.hidden = true; applyTermFilter(); els.list.scrollTop = 0;
+});
+document.getElementById('termSort').addEventListener('change', event => {
+  state.termSort = event.target.value; render(); els.list.scrollTop = 0; save();
+});
+
+const toolsMenu = document.getElementById('toolsMenu');
+toolsMenu.addEventListener('click', event => {
+  if (event.target.closest('button')) toolsMenu.open = false;
+});
+document.addEventListener('click', event => { if (!toolsMenu.contains(event.target)) toolsMenu.open = false; });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && toolsMenu.open) { toolsMenu.open = false; toolsMenu.querySelector('summary').focus(); } });

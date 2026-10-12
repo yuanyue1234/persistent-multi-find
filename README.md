@@ -1,8 +1,8 @@
 # 多词高亮 · 连续查找与批量编辑
 
-Chrome / Edge 扩展，版本 **1.14.0**。把多个关键词存成规则，持续高亮，预览后替换或追加。
+Chrome / Edge 扩展，版本 **1.15.0**。把多个关键词存成规则，持续高亮，预览后替换或追加。
 
-**[打开交互演示](https://asunny.top/persistent-multi-find/)** · **[下载插件 ZIP](https://github.com/yuanyue1234/persistent-multi-find/raw/refs/heads/main/downloads/persistent-multi-find-v1.14.0.zip)**
+**[打开交互演示](https://asunny.top/persistent-multi-find/)** · **[下载插件 ZIP](https://github.com/yuanyue1234/persistent-multi-find/raw/refs/heads/main/downloads/persistent-multi-find-v1.15.0.zip)**
 
 ## 安装
 
@@ -14,6 +14,19 @@ Chrome / Edge 扩展，版本 **1.14.0**。把多个关键词存成规则，持�
 更新时在扩展管理页重新加载插件，**再刷新目标网页**。不要先卸载，以免丢失本地规则。
 
 ## 使用
+
+顶部「工具」菜单集中提供导入 / 导出、读取素材、大小写和深色模式。搜索匹配词、替换文字及排除项；搜索后批量替换 / 追加只处理可见词条。排序支持最新在前、最早在前与拖动后的手动排序。
+
+复制导出以方案名开头，普通词条不添加空排除标记，例如：
+
+```text
+# 镜头012 秦烈追击
+黑马 | [20_资产_人物表_R23_C5_战马与护卫骑乘马.jpeg]
+秦烈 | [17_资产_人物表_R07_C5_秦烈｜秦军校尉.jpeg]
+```
+
+导入标题会更新当前方案名，每次只导入一个方案；仅高亮和删除标记仍保留以便还原模式。
+
 
 - **项目与方案**：顶部下拉菜单切换项目，下方切换生成段方案；新方案从「方案1」开始编号。
 - **替换**：输入目标文字；留空代表删除。单项与全部操作均先预览再确认。
