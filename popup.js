@@ -84,8 +84,13 @@ function formatPattern(term, includeEmptyDash = true) {
   return includeEmptyDash ? `${term.keyword} -` : term.keyword;
 }
 
+function transferSchemes() {
+  return document.getElementById('globalTransfer').checked ? state.schemes : [activeScheme()];
+}
 function exportText() {
-  return `# ${activeScheme().name}\n` + terms().map((term) => `${formatPattern(term, false)} | ${term.compact ? '{{仅高亮}}' : ''}${term.deleteMatch ? '{{删除}}' : term.replacement || ""}`).join("\n");
+  const block = scheme => `# ${scheme.name}\n` + scheme.terms.map(term => `${formatPattern(term, false)} | ${term.compact ? '{{仅高亮}}' : ''}${term.deleteMatch ? '{{删除}}' : term.replacement || ''}`).join('\n');
+  if (!document.getElementById('globalTransfer').checked) return block(activeScheme());
+  return state.projects.map(project => `## ${project.name}\n` + state.schemes.filter(s => s.projectId === project.id).map(block).join('\n\n')).join('\n\n');
 }
 
 function activeScheme() {
@@ -232,7 +237,7 @@ function render() {
     els.list.append(row);
   }
   applyTermFilter();
-  if (!els.importPanel.hidden) els.batchInput.value = exportText();
+  if (!els.importPanel.hidden) els.batchInput.value = els.batchInput.dataset.exported = exportText();
 }
 function icon(name) {
   const paths = {
@@ -298,7 +303,7 @@ async function addTerm() {
 
 function setImportOpen(open) {
   if (open) {
-    els.batchInput.value = exportText();
+    els.batchInput.value = els.batchInput.dataset.exported = exportText();
     els.excludePanel.hidden = true;
     els.resultToast.hidden = true;
     extra.materialPanel.hidden = true;
@@ -435,44 +440,66 @@ document.addEventListener("keydown", (event) => {
 
 els.importButton.addEventListener("click", async () => {
   const rawLines = els.batchInput.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const title = rawLines[0]?.match(/^#\s+(.+)$/);
-  if (title) rawLines.shift();
-  if (rawLines.some(line => /^#\s+/.test(line))) return showStatus('请每次只导入一个方案');
-  const parsedByKeyword = new Map();
+  const global = document.getElementById('globalTransfer').checked;
+  const blocks = [];
+  let projectName = state.projects.find(p => p.id === state.activeProjectId).name;
+  let block = null;
   for (const line of rawLines) {
-    const separator = line.match(/\s+\|\s*/) || (!els.importAsRegex.checked ? line.match(/\|\s*/) : null);
-    const pattern = parsePatternText((separator ? line.slice(0, separator.index) : line).trim());
-    const keyword = pattern.keyword;
-    const rawReplacement = separator ? line.slice(separator.index + separator[0].length).trim() : keyword;
-    const compact = !separator || rawReplacement.startsWith('{{仅高亮}}');
-    const replacement = rawReplacement.replace(/^\{\{仅高亮\}\}/, '');
-    if (keyword) parsedByKeyword.set(keyword, { keyword, compact, replacement: replacement === '{{删除}}' ? '' : replacement, deleteMatch: replacement === '{{删除}}', exclusions: pattern.exclusions });
+    const projectTitle = line.match(/^##\s+(.+)$/), title = line.match(/^#\s+(.+)$/);
+    if (projectTitle) { projectName = projectTitle[1].trim(); block = null; continue; }
+    if (title) { block = { projectName, name: title[1].trim(), lines: [] }; blocks.push(block); continue; }
+    if (!block) { block = { projectName, name: activeScheme().name, lines: [] }; blocks.push(block); }
+    block.lines.push(line);
   }
-  if (title && parsedByKeyword.size) activeScheme().name = title[1].trim();
-  let added = 0;
-  let updated = 0;
-  let invalid = 0;
-  for (const { keyword, replacement, exclusions, deleteMatch, compact } of parsedByKeyword.values()) {
-    if (els.importAsRegex.checked) {
-      try {
-        new RegExp(keyword);
-        exclusions.forEach((item) => new RegExp(item));
-      } catch { invalid += 1; continue; }
+  if (!blocks.length) return showStatus('没有可导入的方案');
+  if (!global && (blocks.length > 1 || rawLines.some(line => /^##\s+/.test(line)))) return showStatus('当前片段模式只能导入一个方案；请勾选全局后导入多个方案');
+  // Resolve ambiguous names before any mutation.
+  if (global && blocks.some(block => {
+    const projects = state.projects.filter(p => p.name === block.projectName);
+    return projects.length > 1 || (projects[0] && state.schemes.filter(s => s.projectId === projects[0].id && s.name === block.name).length > 1);
+  })) return showStatus('存在重名项目或方案，请先重命名再导入，避免合并到错误位置');
+  let added = 0, updated = 0, invalid = 0;
+  for (const block of blocks) {
+    let target = activeScheme();
+    if (global) {
+      let project = state.projects.find(p => p.name === block.projectName);
+      if (!project) { project = { id: uid(), name: block.projectName }; state.projects.push(project); }
+      target = state.schemes.find(s => s.projectId === project.id && s.name === block.name);
+      if (!target) { target = { id: uid(), name: block.name, projectId: project.id, terms: [] }; state.schemes.push(target); }
+      if (!project.activeSchemeId) project.activeSchemeId = target.id;
+    } else target.name = block.name;
+    const parsedByKeyword = new Map();
+    for (const line of block.lines) {
+      const separator = line.match(/\s+\|\s*/) || (!els.importAsRegex.checked ? line.match(/\|\s*/) : null);
+      const pattern = parsePatternText((separator ? line.slice(0, separator.index) : line).trim());
+      const keyword = pattern.keyword;
+      const rawReplacement = separator ? line.slice(separator.index + separator[0].length).trim() : keyword;
+      const compact = !separator || rawReplacement.startsWith('{{仅高亮}}');
+      const replacement = rawReplacement.replace(/^\{\{仅高亮\}\}/, '');
+      if (keyword) parsedByKeyword.set(keyword, { keyword, compact, replacement: replacement === '{{删除}}' ? '' : replacement, deleteMatch: replacement === '{{删除}}', exclusions: pattern.exclusions });
     }
-    const existing = terms().find((term) => term.keyword === keyword);
-    if (existing) {
-      const exclusionsChanged = JSON.stringify(existing.exclusions || []) !== JSON.stringify(exclusions);
-      if (existing.replacement !== replacement || Boolean(existing.compact) !== compact || Boolean(existing.deleteMatch) !== deleteMatch || existing.regex !== els.importAsRegex.checked || exclusionsChanged) updated += 1;
-      existing.compact = compact;
-      existing.replacement = replacement;
-      existing.deleteMatch = deleteMatch;
-      existing.regex = els.importAsRegex.checked;
-      existing.exclusions = exclusions;
-    } else {
-      terms().push({
-        id: uid(), keyword, replacement, deleteMatch, compact, color: nextAutoColor(), enabled: true, regex: els.importAsRegex.checked, exclusions
-      });
-      added += 1;
+    for (const { keyword, replacement, exclusions, deleteMatch, compact } of parsedByKeyword.values()) {
+      if (els.importAsRegex.checked) {
+        try {
+          new RegExp(keyword);
+          exclusions.forEach((item) => new RegExp(item));
+        } catch { invalid += 1; continue; }
+      }
+      const existing = target.terms.find((term) => term.keyword === keyword);
+      if (existing) {
+        const exclusionsChanged = JSON.stringify(existing.exclusions || []) !== JSON.stringify(exclusions);
+        if (existing.replacement !== replacement || Boolean(existing.compact) !== compact || Boolean(existing.deleteMatch) !== deleteMatch || existing.regex !== els.importAsRegex.checked || exclusionsChanged) updated += 1;
+        existing.compact = compact;
+        existing.replacement = replacement;
+        existing.deleteMatch = deleteMatch;
+        existing.regex = els.importAsRegex.checked;
+        existing.exclusions = exclusions;
+      } else {
+        target.terms.push({
+          id: uid(), keyword, replacement, deleteMatch, compact, color: nextAutoColor(target.terms), enabled: true, regex: els.importAsRegex.checked, exclusions
+        });
+        added += 1;
+      }
     }
   }
   render();
@@ -487,8 +514,8 @@ els.importButton.addEventListener("click", async () => {
 
 els.copyExport.addEventListener("click", async () => {
   const text = exportText();
-  if (!terms().length) return showStatus("当前方案没有可导出的词条");
-  els.batchInput.value = text;
+  if (!transferSchemes().length) return showStatus("没有可导出的方案");
+  els.batchInput.value = els.batchInput.dataset.exported = text;
   els.batchInput.focus();
   els.batchInput.select();
   let copied = false;
@@ -498,7 +525,7 @@ els.copyExport.addEventListener("click", async () => {
   } catch {
     copied = document.execCommand("copy");
   }
-  showStatus(copied ? `已复制 ${terms().length} 项` : "导出文本已生成，请手动复制");
+  showStatus(copied ? `已复制 ${transferSchemes().length} 个方案 · ${transferSchemes().reduce((n, s) => n + s.terms.length, 0)} 项` : "导出文本已生成，请手动复制");
 });
 
 els.master.addEventListener("change", () => {
@@ -995,3 +1022,8 @@ toolsMenu.addEventListener('click', event => {
 });
 document.addEventListener('click', event => { if (!toolsMenu.contains(event.target)) toolsMenu.open = false; });
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && toolsMenu.open) { toolsMenu.open = false; toolsMenu.querySelector('summary').focus(); } });
+
+document.getElementById('globalTransfer').addEventListener('change', () => {
+  if (els.batchInput.value === els.batchInput.dataset.exported) els.batchInput.value = els.batchInput.dataset.exported = exportText();
+  showStatus(document.getElementById('globalTransfer').checked ? '全局：所有项目与方案；点击复制导出生成文本' : '当前片段：仅当前方案；点击复制导出生成文本');
+});

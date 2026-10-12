@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "连续多词高亮与批量替换",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "像 Ctrl+F 一样查找，但支持持久多关键词、独立颜色和批量替换。",
   "permissions": [
     "storage",

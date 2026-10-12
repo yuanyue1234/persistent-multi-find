@@ -306,6 +306,7 @@ test('tools are grouped and titled exports import filenames intact', async t => 
   const e = await popup(t), d = e.doc;
   assert.equal(d.getElementById('listTop'), null);
   for (const id of ['themeButton','toggleImportButton','materialButton','caseSensitive']) assert.ok(d.getElementById('toolsMenu').contains(d.getElementById(id)));
+  d.getElementById('globalTransfer').checked = false;
   d.getElementById('batchInput').value = '# 镜头012 秦烈追击\n黑马 | [20_战马.jpeg]\n秦烈 | [17_秦烈｜秦军校尉.jpeg]\n马匹|[20_战马.jpeg]';
   d.getElementById('importButton').click(); await tick();
   assert.equal(e.data().schemes[0].name, '镜头012 秦烈追击');
@@ -314,4 +315,37 @@ test('tools are grouped and titled exports import filenames intact', async t => 
   d.getElementById('toggleImportButton').click();
   assert.ok(d.getElementById('batchInput').value.startsWith('# 镜头012 秦烈追击\n'));
   assert.ok(d.getElementById('batchInput').value.includes('黑马 | [20_战马.jpeg]'));
+});
+
+test('global multi-project transfer and current-only mode keep schemes separate', async t => {
+  const e = await popup(t), d = e.doc;
+  const scope = d.getElementById('globalTransfer'), input = d.getElementById('batchInput');
+  assert.equal(scope.checked, true);
+  d.getElementById('toggleImportButton').click();
+  assert.match(input.value, /^## 项目1\n# 方案一/);
+  scope.checked = false; scope.dispatchEvent(new e.w.Event('change'));
+  assert.match(input.value, /^# 方案一/);
+  input.value = '# 镜头1\n甲 | 一\n# 镜头2\n甲 | 二';
+  d.getElementById('importButton').click(); await tick();
+  assert.equal(e.data().schemes.length, 1);
+  scope.checked = true; scope.dispatchEvent(new e.w.Event('change'));
+  assert.match(input.value, /^# 镜头1/); // Preserve pasted text when changing scope.
+  d.getElementById('importButton').click(); await tick();
+  assert.equal(e.data().schemes.length, 3);
+  assert.equal(e.data().schemes.find(s => s.name === '镜头1').terms[0].replacement, '一');
+  assert.equal(e.data().schemes.find(s => s.name === '镜头2').terms[0].replacement, '二');
+  input.value = '## 新项目\n# 镜头1\n甲 | 三\n# 空方案';
+  d.getElementById('importButton').click(); await tick();
+  assert.equal(e.data().projects.length, 2);
+  const project = e.data().projects.find(p => p.name === '新项目');
+  assert.equal(e.data().schemes.find(s => s.projectId === project.id && s.name === '镜头1').terms[0].replacement, '三');
+  d.getElementById('toggleImportButton').click(); const exported = input.value;
+  assert.match(exported, /## 新项目\n# 镜头1/);
+  d.getElementById('importButton').click(); await tick();
+  assert.equal(e.data().schemes.length, 5); // Reimport updates, never duplicates.
+  scope.checked = false; scope.dispatchEvent(new e.w.Event('change'));
+  d.getElementById('toggleImportButton').click();
+  if (d.getElementById('importPanel').hidden) d.getElementById('toggleImportButton').click();
+  assert.match(input.value, /^# 方案一/);
+  assert.equal(input.value.includes('## 新项目'), false);
 });

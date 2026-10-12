@@ -17,7 +17,7 @@
         <details id="toolsMenu" class="tools-menu"><summary aria-label="工具菜单">工具 ▾</summary><div class="tools-dropdown">
           <button id="toggleImportButton">导入 / 导出</button>
           <button id="materialButton">读取素材</button>
-          <label><input id="caseSensitive" type="checkbox" /> Aa · 区分大小写</label>
+          <label class="menu-check"><input id="caseSensitive" type="checkbox" /><span>区分大小写</span><span class="menu-checkmark" aria-hidden="true">✓</span></label>
           <button id="themeButton" aria-label="深色模式" aria-pressed="true">深色模式</button>
         </div></details>
         <button id="detachButton" class="icon-button" title="打开独立窗口，拖动系统标题栏移动" aria-label="独立窗口">↗</button>
@@ -46,6 +46,7 @@
 
       <section id="importPanel" class="overlay-panel import-panel" hidden aria-label="导入导出">
         <div class="panel-head"><strong>导入 / 导出</strong><button id="closeImportButton" aria-label="关闭导入导出">×</button></div>
+        <label class="transfer-scope"><input id="globalTransfer" type="checkbox" checked /> 全局（所有项目与方案）</label>
         <textarea id="batchInput" placeholder="每行一项，例如：&#10;多里安 | Dorian&#10;高级学生若. | 高级学生&#10;灰狼家徽机关 | 家徽机关"></textarea>
         <div class="import-actions panel-actions">
           <label><input id="importAsRegex" type="checkbox" /> 按正则表达式导入</label>
@@ -54,7 +55,7 @@
             <button id="importButton" class="primary">导入 / 更新</button>
           </div>
         </div>
-        <small>首行可写 <code># 方案名</code>，导入时更新当前方案名称。每行格式：<code>匹配文本 | 替换文本</code>。右侧留空即删除；无分隔符时仅高亮；导出的 {{仅高亮}} 标记保留模式。</small>
+        <small>全局使用 <code>## 项目名</code> 和 <code># 方案名</code> 分组，同名方案合并更新，不删除未列出的词条。取消全局后仅处理当前片段（一次一个方案）。每行格式：<code>匹配文本 | 替换文本</code>。右侧留空即删除；无分隔符时仅高亮；导出的 {{仅高亮}} 标记保留模式。</small>
       </section>
 
       <div class="toolbar">
